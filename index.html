@@ -126,6 +126,7 @@ textarea { height: 130px; resize: vertical; }
     color: var(--text);
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
 }
+.dev-dialog { max-height: 90vh; overflow-y: auto; }
 .dev-dialog::backdrop { background: rgba(15, 23, 42, 0.4); }
 
 .dev-dialog h2 { margin: 0 0 14px; font-size: 1.1rem; }
@@ -139,6 +140,27 @@ textarea { height: 130px; resize: vertical; }
 .url-row { display: flex; gap: 8px; align-items: center; }
 .url-row input { margin: 10px 0; flex: 1; min-width: 0; }
 .url-row .btn { width: auto; margin: 0; padding: 12px 14px; font-size: 14px; }
+.test-section {
+    margin-top: 18px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border-soft);
+}
+.test-section h3 { margin: 0 0 4px; font-size: 1rem; }
+.test-section input, .test-section textarea { margin: 8px 0; }
+.test-section textarea { height: 80px; }
+.test-output {
+    margin: 10px 0 0;
+    padding: 10px;
+    min-height: 2.5em;
+    max-height: 160px;
+    overflow: auto;
+    background: var(--surface);
+    border: 1px solid var(--border-soft);
+    border-radius: 6px;
+    font-size: 12px;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
 .dev-status {
     font-size: 12px;
     overflow-wrap: anywhere;
@@ -185,21 +207,15 @@ textarea { height: 130px; resize: vertical; }
     <button class="btn btn-secondary" type="button" id="closeDev">Close</button>
 
     <p class="dev-status" id="apiStatus" role="status" aria-live="polite"></p>
+
+    <section class="test-section" aria-labelledby="testTitle">
+        <h3 id="testTitle">FastAPI connection test</h3>
+        <input id="testEmail" type="email" placeholder="Your email" autocomplete="off">
+        <textarea id="testMessage" placeholder="Your test message"></textarea>
+        <button class="btn btn-primary" type="button" id="testButton">Send to FastAPI</button>
+        <pre class="test-output" id="testResult" role="status" aria-live="polite"></pre>
+    </section>
 </dialog>
-
-<div>
-  <h3>FastAPI Connection Test</h3>
-
-  <input id="testEmail" type="email" placeholder="Your email">
-  <br><br>
-
-  <textarea id="testMessage" placeholder="Your test message"></textarea>
-  <br><br>
-
-  <button id="testButton">Send to FastAPI</button>
-
-  <pre id="testResult"></pre>
-</div>
 
 <script>
 (function () {
@@ -347,39 +363,45 @@ textarea { height: 130px; resize: vertical; }
             sendButton.disabled = false;
         }
     });
-})();
-ocument.getElementById("testButton").addEventListener("click", async () => {
-  const result = document.getElementById("testResult");
 
-  // Use the same saved API URL as your existing application
-  const apiUrl = localStorage.getItem("FASTAPI_URL")?.replace(/\/+$/, "");
+    // ---------- Connection test (developer dialog) ----------
+    const testButton = document.getElementById("testButton");
+    const testResult = document.getElementById("testResult");
 
-  if (!apiUrl) {
-    result.textContent = "Please configure your FastAPI URL first.";
-    return;
-  }
+    testButton.addEventListener("click", async function () {
+        const apiUrl = getApiUrl();
+        if (!apiUrl) {
+            testResult.textContent = "No API URL set. Save one above first.";
+            return;
+        }
 
-  const payload = {
-    email: document.getElementById("testEmail").value,
-    message: document.getElementById("testMessage").value
-  };
+        const payload = {
+            email: document.getElementById("testEmail").value,
+            message: document.getElementById("testMessage").value
+        };
 
-  try {
-    const response = await fetch(apiUrl + "/test/receive", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(payload)
+        testButton.disabled = true;
+        testResult.textContent = "Sending...";
+
+        try {
+            const response = await fetch(apiUrl + "/test/receive", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+
+            const raw = await response.text();
+            let shown = raw;
+            try { shown = JSON.stringify(JSON.parse(raw), null, 2); } catch (e) {}
+
+            testResult.textContent = "HTTP " + response.status + "\n" + shown;
+        } catch (error) {
+            testResult.textContent = "Connection error: " + error.message;
+        } finally {
+            testButton.disabled = false;
+        }
     });
-
-    const data = await response.json();
-    result.textContent = JSON.stringify(data, null, 2);
-
-  } catch (error) {
-    result.textContent = "Connection error: " + error.message;
-  }
-});
+})();
 </script>
 
 </body>
