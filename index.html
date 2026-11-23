@@ -100,75 +100,6 @@ textarea { height: 130px; resize: vertical; }
 .feedback[data-state="ok"] { color: var(--ok); }
 .feedback[data-state="error"] { color: var(--error); }
 
-/* ---------- Developer tools (out of flow: fixed button + modal dialog) ---------- */
-
-.dev-toggle {
-    position: fixed;
-    top: 15px;
-    right: 15px;
-    width: 40px;
-    height: 40px;
-    border: none;
-    border-radius: 50%;
-    background: transparent;
-    color: #64748b;
-    font-size: 21px;
-    cursor: pointer;
-}
-.dev-toggle:hover { color: var(--accent); background: var(--border-soft); }
-
-.dev-dialog {
-    width: min(92vw, 420px);
-    padding: 20px;
-    border: 1px solid var(--border-soft);
-    border-radius: 12px;
-    background: var(--surface-alt);
-    color: var(--text);
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-}
-.dev-dialog { max-height: 90vh; overflow-y: auto; }
-.dev-dialog::backdrop { background: rgba(15, 23, 42, 0.4); }
-
-.dev-dialog h2 { margin: 0 0 14px; font-size: 1.1rem; }
-.dev-dialog label {
-    display: block;
-    font-size: 13px;
-    font-weight: bold;
-    color: var(--text-label);
-}
-.dev-dialog .btn { margin-top: 8px; padding: 10px; font-size: 15px; }
-.url-row { display: flex; gap: 8px; align-items: center; }
-.url-row input { margin: 10px 0; flex: 1; min-width: 0; }
-.url-row .btn { width: auto; margin: 0; padding: 12px 14px; font-size: 14px; }
-.test-section {
-    margin-top: 18px;
-    padding-top: 14px;
-    border-top: 1px solid var(--border-soft);
-}
-.test-section h3 { margin: 0 0 4px; font-size: 1rem; }
-.test-section input, .test-section textarea { margin: 8px 0; }
-.test-section textarea { height: 80px; }
-.test-output {
-    margin: 10px 0 0;
-    padding: 10px;
-    min-height: 2.5em;
-    max-height: 160px;
-    overflow: auto;
-    background: var(--surface);
-    border: 1px solid var(--border-soft);
-    border-radius: 6px;
-    font-size: 12px;
-    white-space: pre-wrap;
-    overflow-wrap: anywhere;
-}
-.dev-status {
-    font-size: 12px;
-    overflow-wrap: anywhere;
-    color: var(--text-muted);
-    margin: 10px 0 0;
-}
-.dev-status[data-state="ok"] { color: var(--ok); }
-.dev-status[data-state="error"] { color: var(--error); }
 </style>
 </head>
 
@@ -188,131 +119,12 @@ textarea { height: 130px; resize: vertical; }
     <p class="feedback" id="result" role="status" aria-live="polite"></p>
 </main>
 
-<!-- Developer tools: independent of the app layout -->
-<button class="dev-toggle" id="devToggle" type="button"
-        title="Developer settings" aria-label="Developer settings">⚙</button>
-
-<dialog class="dev-dialog" id="devDialog" aria-labelledby="devTitle">
-    <h2 id="devTitle">Developer settings</h2>
-
-    <label for="apiUrl">FastAPI public tunnel URL</label>
-    <div class="url-row">
-        <input type="url" id="apiUrl" placeholder="https://your-tunnel.example.com"
-               autocomplete="off" spellcheck="false">
-        <button class="btn btn-secondary" type="button" id="pasteUrl">Paste</button>
-    </div>
-
-    <button class="btn btn-primary" type="button" id="saveUrl">Save URL</button>
-    <button class="btn btn-secondary" type="button" id="resetUrl">Clear URL</button>
-    <button class="btn btn-secondary" type="button" id="closeDev">Close</button>
-
-    <p class="dev-status" id="apiStatus" role="status" aria-live="polite"></p>
-
-    <section class="test-section" aria-labelledby="testTitle">
-        <h3 id="testTitle">FastAPI connection test</h3>
-        <input id="testEmail" type="email" placeholder="Your email" autocomplete="off">
-        <textarea id="testMessage" placeholder="Your test message"></textarea>
-        <button class="btn btn-primary" type="button" id="testButton">Send to FastAPI</button>
-        <pre class="test-output" id="testResult" role="status" aria-live="polite"></pre>
-    </section>
-</dialog>
-
 <script>
 (function () {
     "use strict";
 
-    // ---------- Config ----------
-    const STORAGE_KEY = "FASTAPI_URL";
+    const API_URL = "https://api-jfbf.onrender.com";
 
-    // ---------- Storage helpers (safe if storage is blocked) ----------
-    function readStoredUrl() {
-        try { return localStorage.getItem(STORAGE_KEY); } catch (e) { return null; }
-    }
-    function writeStoredUrl(url) {
-        try { localStorage.setItem(STORAGE_KEY, url); return true; } catch (e) { return false; }
-    }
-    function clearStoredUrl() {
-        try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
-    }
-
-    function getApiUrl() {
-        return (readStoredUrl() || "").replace(/\/+$/, "");
-    }
-
-    // ---------- Developer settings ----------
-    const devDialog = document.getElementById("devDialog");
-    const apiInput = document.getElementById("apiUrl");
-    const apiStatus = document.getElementById("apiStatus");
-
-    function setDevStatus(text, state) {
-        apiStatus.textContent = text;
-        apiStatus.dataset.state = state || "";
-    }
-
-    function showCurrentApi() {
-        apiInput.value = getApiUrl();
-        setDevStatus(getApiUrl() ? "Current API: " + getApiUrl() : "No API URL set. Paste one and save.");
-    }
-
-    function isValidTunnelUrl(value) {
-        try {
-            const u = new URL(value);
-            return u.protocol === "https:" && !u.username && !u.password &&
-                   !u.search && !u.hash && u.pathname === "/";
-        } catch (e) {
-            return false;
-        }
-    }
-
-    document.getElementById("devToggle").addEventListener("click", function () {
-        showCurrentApi();
-        devDialog.showModal();
-    });
-
-    document.getElementById("closeDev").addEventListener("click", function () {
-        devDialog.close();
-    });
-
-    // Close when clicking the backdrop
-    devDialog.addEventListener("click", function (event) {
-        if (event.target === devDialog) devDialog.close();
-    });
-
-    document.getElementById("saveUrl").addEventListener("click", function () {
-        const url = apiInput.value.trim().replace(/\/+$/, "");
-        if (!isValidTunnelUrl(url + "/")) {
-            setDevStatus("Enter a valid HTTPS URL with no path, e.g. https://your-tunnel.example.com", "error");
-            return;
-        }
-        if (!writeStoredUrl(url)) {
-            setDevStatus("Could not save: browser storage is blocked.", "error");
-            return;
-        }
-        setDevStatus("Saved. Current API: " + getApiUrl(), "ok");
-    });
-
-    document.getElementById("resetUrl").addEventListener("click", function () {
-        clearStoredUrl();
-        apiInput.value = "";
-        setDevStatus("URL cleared. Paste a new one and save.", "ok");
-    });
-
-    document.getElementById("pasteUrl").addEventListener("click", async function () {
-        try {
-            const text = (await navigator.clipboard.readText()).trim();
-            if (!text) {
-                setDevStatus("Clipboard is empty.", "error");
-                return;
-            }
-            apiInput.value = text;
-            setDevStatus("Pasted. Select Save URL to use it.");
-        } catch (e) {
-            apiInput.focus();
-            setDevStatus("Clipboard access was blocked. Paste manually with Ctrl+V.", "error");
-        }
-    });
-
-    // ---------- Email form ----------
     const form = document.getElementById("emailForm");
     const result = document.getElementById("result");
     const sendButton = document.getElementById("sendButton");
@@ -330,23 +142,17 @@ textarea { height: 130px; resize: vertical; }
             message: document.getElementById("message").value
         };
 
-        const apiUrl = getApiUrl();
-        if (!apiUrl) {
-            setResult("No API URL set. Open developer settings (⚙) and paste one.", "error");
-            return;
-        }
-
         sendButton.disabled = true;
         setResult("Sending request...");
 
         try {
-            const response = await fetch(apiUrl + "/n8n/email", {
+            const response = await fetch(API_URL + "/n8n/email", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload)
             });
 
-            // The server may return non-JSON (proxy or tunnel error pages)
+            // The server may return non-JSON (proxy or platform error pages)
             let data = {};
             try { data = await response.json(); } catch (e) {}
 
@@ -361,44 +167,6 @@ textarea { height: 130px; resize: vertical; }
             console.error(error);
         } finally {
             sendButton.disabled = false;
-        }
-    });
-
-    // ---------- Connection test (developer dialog) ----------
-    const testButton = document.getElementById("testButton");
-    const testResult = document.getElementById("testResult");
-
-    testButton.addEventListener("click", async function () {
-        const apiUrl = getApiUrl();
-        if (!apiUrl) {
-            testResult.textContent = "No API URL set. Save one above first.";
-            return;
-        }
-
-        const payload = {
-            email: document.getElementById("testEmail").value,
-            message: document.getElementById("testMessage").value
-        };
-
-        testButton.disabled = true;
-        testResult.textContent = "Sending...";
-
-        try {
-            const response = await fetch(apiUrl + "/test/receive", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload)
-            });
-
-            const raw = await response.text();
-            let shown = raw;
-            try { shown = JSON.stringify(JSON.parse(raw), null, 2); } catch (e) {}
-
-            testResult.textContent = "HTTP " + response.status + "\n" + shown;
-        } catch (error) {
-            testResult.textContent = "Connection error: " + error.message;
-        } finally {
-            testButton.disabled = false;
         }
     });
 })();
