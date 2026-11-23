@@ -1,0 +1,380 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Email Automation System</title>
+
+<style>
+* {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    background: #f3f4f6;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    margin: 0;
+    padding: 20px;
+}
+
+.container {
+    background: white;
+    padding: 30px;
+    border-radius: 12px;
+    width: 100%;
+    max-width: 420px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    position: relative;
+}
+
+.dev-button {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    border: none;
+    background: transparent;
+    color: #64748b;
+    font-size: 21px;
+    cursor: pointer;
+    width: auto;
+    padding: 5px;
+}
+
+.dev-button:hover {
+    color: #2563eb;
+    background: transparent;
+}
+
+h2 {
+    text-align: center;
+    color: #1f2937;
+}
+
+p {
+    text-align: center;
+    color: #6b7280;
+}
+
+input, textarea {
+    width: 100%;
+    padding: 12px;
+    margin: 10px 0;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 15px;
+}
+
+textarea {
+    height: 130px;
+    resize: vertical;
+}
+
+button.send {
+    width: 100%;
+    padding: 13px;
+    background: #2563eb;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+button.send:hover {
+    background: #1d4ed8;
+}
+
+button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+#result {
+    margin-top: 15px;
+    font-size: 14px;
+}
+
+/* Developer settings panel */
+
+.settings {
+    display: none;
+    margin-top: 20px;
+    padding: 18px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+}
+
+.settings h3 {
+    margin-top: 0;
+}
+
+.settings label {
+    display: block;
+    font-size: 13px;
+    font-weight: bold;
+    color: #334155;
+}
+
+.settings button {
+    width: 100%;
+    padding: 10px;
+    margin-top: 8px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.save-button {
+    background: #2563eb;
+    color: white;
+}
+
+.reset-button {
+    background: #e2e8f0;
+    color: #334155;
+}
+
+.api-status {
+    font-size: 12px;
+    overflow-wrap: anywhere;
+    margin-top: 10px;
+}
+</style>
+</head>
+
+<body>
+
+
+    <!-- Developer Settings: Outside the Email Form -->
+    <button
+        class="dev-button"
+        onclick="toggleSettings()"
+        title="Developer Settings"
+        aria-label="Developer Settings">
+        ⚙
+    </button>
+
+    <!-- Developer Settings Panel -->
+    <div class="settings" id="settingsPanel">
+
+        <h3>⚙ Developer Settings</h3>
+
+        <label for="apiUrl">FastAPI Public Tunnel URL</label>
+
+        <input
+            type="url"
+            id="apiUrl"
+            placeholder="https://your-tunnel.lhr.life"
+        >
+
+        <button onclick="saveSettings()">
+            Save Configuration
+        </button>
+
+        <button onclick="resetSettings()">
+            Restore Default URL
+        </button>
+
+        <p id="apiStatus"></p>
+
+    </div>
+
+    <!-- Main Email Application -->
+    <div class="container">
+
+        <h2>Email Automation</h2>
+        <p>Send an email using our automated system.</p>
+
+        <form id="emailForm">
+
+            <input
+                type="email"
+                id="email"
+                placeholder="Recipient email address"
+                required
+            >
+
+            <textarea
+                id="message"
+                placeholder="Write your message..."
+                required
+            ></textarea>
+
+            <button class="send" type="submit" id="sendButton">
+                Send Email
+            </button>
+
+        </form>
+
+        <p id="result"></p>
+
+    </div>
+
+
+
+<script>
+
+// Default FastAPI tunnel URL
+const DEFAULT_API_URL =
+    "https://a2af29dbcee0ed.app.lhr.life";
+
+// Get saved URL or use default
+function getAPIUrl() {
+
+    return (
+        localStorage.getItem("FASTAPI_URL") ||
+        DEFAULT_API_URL
+    ).replace(/\/+$/, "");
+
+}
+
+// Toggle developer panel
+function toggleSettings() {
+
+    const panel = document.getElementById("settingsPanel");
+
+    panel.style.display =
+        panel.style.display === "block" ? "none" : "block";
+
+    document.getElementById("apiUrl").value = getAPIUrl();
+
+    updateAPIStatus();
+
+}
+
+// Save new tunnel URL
+function saveSettings() {
+
+    const input = document.getElementById("apiUrl");
+    const url = input.value.trim();
+
+    try {
+
+        const parsed = new URL(url);
+
+        if (parsed.protocol !== "https:" ||
+            parsed.username ||
+            parsed.password ||
+            parsed.search ||
+            parsed.hash ||
+            parsed.pathname !== "/") {
+            throw new Error("Invalid URL");
+        }
+
+        localStorage.setItem(
+            "FASTAPI_URL",
+            url.replace(/\/+$/, "")
+        );
+
+        updateAPIStatus();
+
+        alert("API URL successfully updated!");
+
+    } catch(error) {
+
+        alert("Please enter a valid HTTPS tunnel URL.");
+
+    }
+
+}
+
+// Restore default URL
+function resetSettings() {
+
+    localStorage.removeItem("FASTAPI_URL");
+
+    document.getElementById("apiUrl").value =
+        DEFAULT_API_URL;
+
+    updateAPIStatus();
+
+    alert("Default API URL restored.");
+
+}
+
+// Display current configuration
+function updateAPIStatus() {
+
+    document.getElementById("apiStatus").textContent =
+        "Current API: " + getAPIUrl();
+
+}
+
+// Email submission
+const form = document.getElementById("emailForm");
+const result = document.getElementById("result");
+const button = document.getElementById("sendButton");
+
+form.addEventListener("submit", async function(event) {
+
+    event.preventDefault();
+
+    const email =
+        document.getElementById("email").value;
+
+    const message =
+        document.getElementById("message").value;
+
+    const data = {
+        email: email,
+        message: message
+    };
+
+    button.disabled = true;
+    result.textContent = "Sending request...";
+
+    try {
+
+        const API_URL = getAPIUrl();
+
+        const response = await fetch(
+            `${API_URL}/n8n/email`,
+            {
+                method: "POST",
+
+                headers: {
+                    "Content-Type": "application/json"
+                },
+
+                body: JSON.stringify(data)
+            }
+        );
+
+        const responseData = await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                responseData.detail || "Request failed"
+            );
+        }
+
+        result.textContent =
+            "Success! Request forwarded to n8n.";
+
+        form.reset();
+
+    } catch(error) {
+
+        result.textContent =
+            "Error: " + error.message;
+
+        console.error(error);
+
+    } finally {
+
+        button.disabled = false;
+
+    }
+
+});
+
+</script>
+
+</body>
+</html>
